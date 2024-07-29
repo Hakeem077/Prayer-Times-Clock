@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prayer Times Countdown</title>
+    <script>
+        const prayerTimes = {
+            fajr: "05:00",
+            dhuhr: "12:30",
+            asr: "15:45",
+            maghrib: "19:00",
+            isha: "21:00"
+        };
+
+        function getTime(date, timeString) {
+            const [hours, minutes] = timeString.split(':').map(Number);
+            date.setHours(hours);
+            date.setMinutes(minutes);
+            date.setSeconds(0);
+            return new Date(date);  // Return a new date object to avoid modifying the original date
+        }
+
+        function getNextPrayerTime(prayerTimesArray) {
+            const now = new Date();
+            for (let prayer of prayerTimesArray) {
+                if (now < prayer.time) {
+                    return prayer;
+                }
+            }
+            return prayerTimesArray[0];
+        }
+
+        function startCountdown(prayer) {
+            const countdownElement = document.getElementById('countdown');
+            function updateCountdown() {
+                const now = new Date();
+                const timeDiff = prayer.time - now;
+                
+                if (timeDiff <= 0) {
+                    clearInterval(intervalId);
+                    countdownElement.innerHTML = "It's time for " + prayer.name + " prayer!";
+                    return;
+                }
+
+                const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+
+                countdownElement.innerHTML = `${hours}h ${minutes}m ${seconds}s`;
+            }
+
+            updateCountdown();
+            const intervalId = setInterval(updateCountdown, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const fajrTime = getTime(new Date(today), prayerTimes.fajr);
+            const dhuhrTime = getTime(new Date(today), prayerTimes.dhuhr);
+            const asrTime = getTime(new Date(today), prayerTimes.asr);
+            const maghribTime = getTime(new Date(today), prayerTimes.maghrib);
+            const ishaTime = getTime(new Date(today), prayerTimes.isha);
+
+            const prayerTimesArray = [
+                { name: 'Fajr', time: fajrTime },
+                { name: 'Dhuhr', time: dhuhrTime },
+                { name: 'Asr', time: asrTime },
+                { name: 'Maghrib', time: maghribTime },
+                { name: 'Isha', time: ishaTime }
+            ];
+
+            const nextPrayer = getNextPrayerTime(prayerTimesArray);
+            document.getElementById('next-prayer').innerText = nextPrayer.name;
+            startCountdown(nextPrayer);
+        });
+    </script>
+</head>
+<body>
+    <h1>Next Prayer: <span id="next-prayer"></span></h1>
+    <div id="countdown"></div>
+</body>
+</html>
