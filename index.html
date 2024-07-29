@@ -1,96 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Prayer Times Countdown</title>
-    <script>
-        const prayerTimes = {
-            fajr: "05:24",
-            dhuhr: "13:40",
-            asr: "17:17",
-            maghrib: "20:32",
-            isha: "21:46"
-        };
+    <title>Prayer Times</title>
 
-        function getTime(date, timeString) {
-            const [hours, minutes] = timeString.split(':').map(Number);
-            date.setHours(hours);
-            date.setMinutes(minutes);
-            date.setSeconds(0);
-            return new Date(date);  // Return a new date object to avoid modifying the original date
+    <style> /* CSS */
+
+        body, html { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow-x: hidden; 
         }
 
-        function getNextPrayerTime(prayerTimesArray) {
-            const now = new Date();
-            for (let prayer of prayerTimesArray) {
-                if (now < prayer.time) {
-                    return prayer;
-                }
-            }
-            return prayerTimesArray[0];
+        body {
+            background-image: url('sunset.jpg');
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed; 
         }
 
-        function format12Hour(date) {
-            let hours = date.getHours();
-            const minutes = date.getMinutes();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; // the hour '0' should be '12'
-            const minutesStr = minutes < 10 ? '0' + minutes : minutes;
-            return `${hours}:${minutesStr} ${ampm}`;
+        .content-box {
+            background-color: rgba(217, 190, 190, 0.8); 
+            padding: 10px 20px 20px 20px; /* top, right, bottom, left */
+            border-radius: 10px;
+            margin: 20px;
         }
 
-        function startCountdown(prayer) {
-            const countdownElement = document.getElementById('countdown');
-            function updateCountdown() {
-                const now = new Date();
-                const timeDiff = prayer.time - now;
-                
-                if (timeDiff <= 0) {
-                    clearInterval(intervalId);
-                    countdownElement.innerHTML = `It's time for ${prayer.name} prayer!`;
-                    return;
-                }
-
-                const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-                const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-
-                const hoursStr = hours < 10 ? '0' + hours : hours;
-                const minutesStr = minutes < 10 ? '0' + minutes : minutes;
-                const secondsStr = seconds < 10 ? '0' + seconds : seconds;
-
-                countdownElement.innerHTML = `${hoursStr}h ${minutesStr}m ${secondsStr}s`;
-            }
-
-            updateCountdown();
-            const intervalId = setInterval(updateCountdown, 1000);
+        .next-prayer-info {
+            color: black;
+            font-weight: bold;
+            font-size: 20px;
+            margin-top: 20px;
         }
+        
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const fajrTime = getTime(new Date(today), prayerTimes.fajr);
-            const dhuhrTime = getTime(new Date(today), prayerTimes.dhuhr);
-            const asrTime = getTime(new Date(today), prayerTimes.asr);
-            const maghribTime = getTime(new Date(today), prayerTimes.maghrib);
-            const ishaTime = getTime(new Date(today), prayerTimes.isha);
+    </style>
 
-            const prayerTimesArray = [
-                { name: 'Fajr', time: fajrTime },
-                { name: 'Dhuhr', time: dhuhrTime },
-                { name: 'Asr', time: asrTime },
-                { name: 'Maghrib', time: maghribTime },
-                { name: 'Isha', time: ishaTime }
-            ];
-
-            const nextPrayer = getNextPrayerTime(prayerTimesArray);
-            document.getElementById('next-prayer').innerText = nextPrayer.name;
-            document.getElementById('next-prayer-time').innerText = format12Hour(nextPrayer.time);
-            startCountdown(nextPrayer);
-        });
-    </script>
 </head>
 <body>
-    <h1>Next Prayer: <span id="next-prayer"></span> at <span id="next-prayer-time"></span></h1>
-    <div id="countdown"></div>
+    <div class="content-box">
+        <h1>Prayer Times</h1>
+        <div id="prayer-times"></div>
+        <div id="next-prayer-info" class="next-prayer-info"></div>
+        <div id="clock" class="clock-style"></div>
+
+    </div>
+    <script>
+        function fetchPrayerTimes(latitude, longitude) {
+            const apiURL = `http://api.aladhan.com/v1/calendar?latitude=${latitude}&longitude=${longitude}&method=2`;
+            fetch(apiURL)
+                .then(response => response.json())
+                .then(data => {
+                    const today = new Date().getDate() - 1; 
+                    const timings = data.data[today].timings;
+                    displayPrayerTimes(timings, data.data[today + 1].timings.Fajr); 
+                })
+                .catch(error => console.error('Error fetching prayer times:', error));
+        }
+    
+        function displayPrayerTimes(timings, tomorrowFajr) {
+            const now = new Date();
+            let nextPrayerName = '';
+            let minTimeDiff = Infinity;
+    
+            const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+            const prayerTimesElement = document.getElementById('prayer-times');
+            prayerTimesElement.innerHTML = '';
+    
+            prayers.forEach(prayer => {
+                const prayerTime = convertTo24Hour(timings[prayer]);
+                const timeDiff = getTimeDifference(now, prayerTime);
+    
+                prayerTimesElement.innerHTML += `<p>${prayer}: ${timings[prayer]}</p>`;
+    
+                if (timeDiff >= 0 && timeDiff < minTimeDiff) {
+                    minTimeDiff = timeDiff;
+                    nextPrayerName = prayer;
+                }
+            });
+    
+            // Check if next prayer is undetermined, in the case where last prayer of the day is over
+
+            if (!nextPrayerName && tomorrowFajr) {
+                const nextDay = new Date(now);
+                nextDay.setDate(now.getDate() + 1); // Move to the next day
+                const nextFajrTime = convertTo24Hour(tomorrowFajr, nextDay);
+                nextPrayerName = 'Fajr';
+                minTimeDiff = getTimeDifference(now, nextFajrTime);
+            }
+    
+            if (nextPrayerName && minTimeDiff !== Infinity) {
+                const nextPrayerTime = nextPrayerName === 'Fajr' && tomorrowFajr ? tomorrowFajr : timings[nextPrayerName];
+                const hours = Math.floor(minTimeDiff / (1000 * 60 * 60));
+                const minutes = Math.floor((minTimeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                document.getElementById('next-prayer-info').innerHTML = `Next Prayer: ${nextPrayerName} @ ${nextPrayerTime} - in ${hours} hours and ${minutes} minutes`;
+            } else {
+                console.log('No next prayer was determined.');
+            }
+        }
+    
+        function convertTo24Hour(time, dateNow = new Date()) {
+            const [timePart, modifier] = time.split(' ');
+            let [hours, minutes] = timePart.split(':').map(Number);
+            if (modifier === 'PM' && hours < 12) hours += 12;
+            if (modifier === 'AM' && hours === 12) hours = 0;
+            return new Date(dateNow.getFullYear(), dateNow.getMonth(), dateNow.getDate(), hours, minutes);
+        }
+    
+        function getTimeDifference(current, prayerTime) {
+            return prayerTime.getTime() - current.getTime();
+        }
+    
+        function getLocationAndTimes() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    fetchPrayerTimes(position.coords.latitude, position.coords.longitude);
+                }, error => {
+                    console.error('Error getting location:', error);
+                    alert('Unable to retrieve your location. Defaulting to a standard location.');
+                    fetchPrayerTimes(32.7767, 96.7970); // Default to Dallas
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerHTML = now.toLocaleTimeString();
+        }, 1000);
+    
+        document.addEventListener('DOMContentLoaded', getLocationAndTimes);
+
+    </script>
+    
 </body>
 </html>
