@@ -4,11 +4,11 @@
     <title>Prayer Times Countdown</title>
     <script>
         const prayerTimes = {
-            fajr: "05:00",
-            dhuhr: "12:30",
-            asr: "15:45",
-            maghrib: "19:00",
-            isha: "21:00"
+            fajr: "05:24",
+            dhuhr: "13:40",
+            asr: "17:17",
+            maghrib: "20:32",
+            isha: "21:46"
         };
 
         function getTime(date, timeString) {
@@ -29,6 +29,16 @@
             return prayerTimesArray[0];
         }
 
+        function format12Hour(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours}:${minutesStr} ${ampm}`;
+        }
+
         function startCountdown(prayer) {
             const countdownElement = document.getElementById('countdown');
             function updateCountdown() {
@@ -37,7 +47,7 @@
                 
                 if (timeDiff <= 0) {
                     clearInterval(intervalId);
-                    countdownElement.innerHTML = "It's time for " + prayer.name + " prayer!";
+                    countdownElement.innerHTML = `It's time for ${prayer.name} prayer!`;
                     return;
                 }
 
@@ -45,7 +55,11 @@
                 const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
 
-                countdownElement.innerHTML = `${hours}h ${minutes}m ${seconds}s`;
+                const hoursStr = hours < 10 ? '0' + hours : hours;
+                const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+                const secondsStr = seconds < 10 ? '0' + seconds : seconds;
+
+                countdownElement.innerHTML = `${hoursStr}h ${minutesStr}m ${secondsStr}s`;
             }
 
             updateCountdown();
@@ -70,12 +84,13 @@
 
             const nextPrayer = getNextPrayerTime(prayerTimesArray);
             document.getElementById('next-prayer').innerText = nextPrayer.name;
+            document.getElementById('next-prayer-time').innerText = format12Hour(nextPrayer.time);
             startCountdown(nextPrayer);
         });
     </script>
 </head>
 <body>
-    <h1>Next Prayer: <span id="next-prayer"></span></h1>
+    <h1>Next Prayer: <span id="next-prayer"></span> at <span id="next-prayer-time"></span></h1>
     <div id="countdown"></div>
 </body>
 </html>
